@@ -2,7 +2,9 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/huh"
@@ -28,9 +30,22 @@ func defaultKeymap() *huh.KeyMap {
 	return km
 }
 
+// confirmKeymap returns a keymap for yes/no confirms.
+// Left/right are NOT overridden so they toggle between Yes and No naturally.
+func confirmKeymap() *huh.KeyMap {
+	km := huh.NewDefaultKeyMap()
+	km.Quit = key.NewBinding(key.WithKeys("ctrl+c", "esc"))
+	return km
+}
+
 // runField wraps a single huh field in a form with the back-enabled keymap.
 func runField(field huh.Field) error {
 	return huh.NewForm(huh.NewGroup(field)).WithKeyMap(keymap()).Run()
+}
+
+// runFieldConfirm wraps a confirm field with a keymap safe for yes/no toggles.
+func runFieldConfirm(field huh.Field) error {
+	return huh.NewForm(huh.NewGroup(field)).WithKeyMap(confirmKeymap()).Run()
 }
 
 // runFieldDefault wraps a single huh field in a form with the default keymap.
@@ -138,6 +153,7 @@ func SelectAction() (string, error) {
 			huh.NewOption("List worktrees", "ls"),
 			huh.NewOption("Remove a worktree", "rm"),
 			huh.NewOption("Remove ALL worktrees for a repo", "clear"),
+			huh.NewOption(MutedStyle.Render("Settings"), "settings"),
 			huh.NewOption(MutedStyle.Render("Quit"), "quit"),
 		).
 		Value(&action)
@@ -147,6 +163,7 @@ func SelectAction() (string, error) {
 }
 
 // Confirm prompts the user for a yes/no confirmation.
+// Uses a dedicated keymap so left/right toggle Yes/No instead of acting as back/submit.
 func Confirm(title string) (bool, error) {
 	var confirmed bool
 	field := huh.NewConfirm().
@@ -155,7 +172,7 @@ func Confirm(title string) (bool, error) {
 		Negative("No").
 		Value(&confirmed)
 
-	err := runField(field)
+	err := runFieldConfirm(field)
 	return confirmed, err
 }
 
@@ -167,4 +184,81 @@ func ConfirmInstall(pmName string) (bool, error) {
 // ConfirmForceDelete prompts whether to force-delete an unmerged branch.
 func ConfirmForceDelete(branch string) (bool, error) {
 	return Confirm(fmt.Sprintf("Force delete unmerged branch '%s'?", branch))
+}
+
+// SelectPathMethod prompts the user to choose how to set the base folder path.
+func SelectPathMethod() (string, error) {
+	var method string
+	field := huh.NewSelect[string]().
+		Title("How would you like to set the base folder?").
+		Options(
+			huh.NewOption("Type a path", "type"),
+			huh.NewOption("Browse directories", "browse"),
+		).
+		Value(&method)
+
+	err := runField(field)
+	return method, err
+}
+
+// InputPath prompts the user to type a directory path.
+func InputPath(defaultPath string) (string, error) {
+	value := defaultPath
+	field := huh.NewInput().
+		Title("Base folder path").
+		Value(&value)
+
+	err := runField(field)
+	return value, err
+}
+
+// BrowseDirectory presents an interactive directory browser starting at startDir.
+// Returns the chosen directory path or an error.
+func BrowseDirectory(startDir string) (string, error) {
+	current := startDir
+	for {
+		entries, err := os.ReadDir(current)
+		if err != nil {
+			return "", fmt.Errorf("cannot read directory: %w", err)
+		}
+
+		opts := []huh.Option[string]{
+			huh.NewOption(SuccessStyle.Render("✓ Use this folder"), "__select__"),
+		}
+
+		// Add parent directory option unless at filesystem root
+		if current != "/" {
+			opts = append(opts, huh.NewOption(MutedStyle.Render(".."), "__parent__"))
+		}
+
+		for _, e := range entries {
+			if !e.IsDir() {
+				continue
+			}
+			name := e.Name()
+			if strings.HasPrefix(name, ".") {
+				continue
+			}
+			opts = append(opts, huh.NewOption(name, filepath.Join(current, name)))
+		}
+
+		var selected string
+		field := huh.NewSelect[string]().
+			Title(current).
+			Options(opts...).
+			Value(&selected)
+
+		if err := runField(field); err != nil {
+			return "", err
+		}
+
+		switch selected {
+		case "__select__":
+			return current, nil
+		case "__parent__":
+			current = filepath.Dir(current)
+		default:
+			current = selected
+		}
+	}
 }

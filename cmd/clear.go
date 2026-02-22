@@ -19,14 +19,18 @@ var clearCmd = &cobra.Command{
 
 // runClearInteractive is called from the root menu loop.
 func runClearInteractive(cmd *cobra.Command) {
-	runClear(cmd, nil)
+	doClear(false)
 }
 
 func runClear(cmd *cobra.Command, args []string) {
+	doClear(true)
+}
+
+func doClear(direct bool) {
 	fmt.Println()
 
-	// 1. Resolve repo
-	repoDir, err := resolveRepo()
+	// 1. Resolve repo — interactive menu always shows the project list
+	repoDir, err := resolveRepo(!direct)
 	if err != nil {
 		ui.Error(err.Error())
 		os.Exit(1)

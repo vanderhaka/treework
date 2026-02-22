@@ -34,8 +34,8 @@ func runNew(cmd *cobra.Command, args []string) {
 }
 
 func doNew(args []string, direct bool) {
-	// 1. Resolve repo
-	repoDir, err := resolveRepo()
+	// 1. Resolve repo — interactive menu always shows the project list
+	repoDir, err := resolveRepo(!direct)
 	if err != nil {
 		if isAbort(err) {
 			if direct {
@@ -138,7 +138,7 @@ func doNew(args []string, direct bool) {
 				if direct {
 					handleAbort(err)
 				}
-				// Skip install but continue — worktree is already created
+				ui.Muted("Skipped dependency install")
 			}
 		} else if install {
 			var installErr error

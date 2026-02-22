@@ -12,14 +12,17 @@ import (
 	"github.com/jamesvanderhaak/wt/internal/ui"
 )
 
-// resolveRepo returns a repo directory — either the current git repo or one picked interactively.
-func resolveRepo() (string, error) {
-	// Try current directory first
-	if repo := git.CurrentRepo(); repo != "" {
-		return repo, nil
+// resolveRepo returns a repo directory.
+// When forceSelect is true (interactive menu), it always shows the project list.
+// When false (direct CLI), it tries the current directory first.
+func resolveRepo(forceSelect bool) (string, error) {
+	if !forceSelect {
+		if repo := git.CurrentRepo(); repo != "" {
+			return repo, nil
+		}
 	}
 
-	// Scan DEV_DIR for repos
+	// Scan base folder for repos
 	devDir := config.DevDir()
 	if _, err := os.Stat(devDir); err != nil {
 		return "", fmt.Errorf("DEV_DIR not found: %s", devDir)
