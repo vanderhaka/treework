@@ -11,7 +11,10 @@ func DevDir() string {
 	if d := os.Getenv("DEV_DIR"); d != "" {
 		return d
 	}
-	home, _ := os.UserHomeDir()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
 	return filepath.Join(home, "Desktop", "Development")
 }
 

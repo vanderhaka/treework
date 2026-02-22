@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"fmt"
 	"os/exec"
 
 	"github.com/jamesvanderhaak/wt/internal/config"
@@ -28,8 +29,7 @@ func Open(path string) error {
 		}
 	}
 
-	// Fallback: open (should always exist on macOS)
-	return exec.Command("open", path).Start()
+	return fmt.Errorf("no editor found: install cursor, code, or set WT_EDITOR")
 }
 
 func run(editor, path string) error {

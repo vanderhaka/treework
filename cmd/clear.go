@@ -19,17 +19,30 @@ var clearCmd = &cobra.Command{
 
 // runClearInteractive is called from the root menu loop.
 func runClearInteractive(cmd *cobra.Command) {
-	runClear(cmd, nil)
+	doClear(false)
 }
 
 func runClear(cmd *cobra.Command, args []string) {
 	fmt.Println()
+	doClear(true)
+}
+
+func doClear(direct bool) {
 
 	// 1. Resolve repo
 	repoDir, err := resolveRepo()
 	if err != nil {
+		if isAbort(err) {
+			if direct {
+				handleAbort(err)
+			}
+			return
+		}
 		ui.Error(err.Error())
-		os.Exit(1)
+		if direct {
+			os.Exit(1)
+		}
+		return
 	}
 
 	repoName := filepath.Base(repoDir)
@@ -41,6 +54,7 @@ func runClear(cmd *cobra.Command, args []string) {
 		fmt.Println()
 		return
 	}
+	defaultBranch := git.DefaultBranch(repoDir)
 
 	// 3. Display list
 	ui.Info(fmt.Sprintf("Worktrees for %s:", ui.BoldStyle.Render(repoName)))
@@ -52,9 +66,17 @@ func runClear(cmd *cobra.Command, args []string) {
 	// 4. Confirm
 	confirmed, err := ui.Confirm(fmt.Sprintf("Remove all %d worktrees?", len(worktrees)))
 	if err != nil {
-		handleAbort(err)
+		if isAbort(err) {
+			if direct {
+				handleAbort(err)
+			}
+			return
+		}
 		ui.Error(err.Error())
-		os.Exit(1)
+		if direct {
+			os.Exit(1)
+		}
+		return
 	}
 	if !confirmed {
 		ui.Muted("Cancelled.")
@@ -63,27 +85,48 @@ func runClear(cmd *cobra.Command, args []string) {
 	}
 
 	// 5. Remove each worktree
+	errs := []error{}
 	err = spinner.New().
 		Title("Removing worktrees...").
 		Action(func() {
 			for _, wt := range worktrees {
-				git.WorktreeRemove(repoDir, wt.Path)
+				if err := git.WorktreeRemove(repoDir, wt.Path); err != nil {
+					errs = append(errs, fmt.Errorf("%s: %w", filepath.Base(wt.Path), err))
+					continue
+				}
 
 				// Auto-delete merged branches
-				if wt.Branch != "" && wt.Branch != "main" && wt.Branch != "master" {
+				if wt.Branch != "" && wt.Branch != defaultBranch {
 					if git.IsBranchMerged(repoDir, wt.Branch) {
 						git.DeleteBranch(repoDir, wt.Branch)
 					}
 				}
 			}
-			git.WorktreePrune(repoDir)
+			_ = git.WorktreePrune(repoDir)
 		}).
 		Run()
 
 	if err != nil {
-		handleAbort(err)
+		if isAbort(err) {
+			if direct {
+				handleAbort(err)
+			}
+			return
+		}
 		ui.Error(err.Error())
-		os.Exit(1)
+		if direct {
+			os.Exit(1)
+		}
+		return
+	}
+	if len(errs) > 0 {
+		fmt.Println()
+		ui.Warn("Some worktrees could not be removed:")
+		for _, removeErr := range errs {
+			ui.Warn(fmt.Sprintf("- %s", removeErr))
+		}
+		ui.Warn(fmt.Sprintf("%d worktree(s) could not be removed", len(errs)))
+		return
 	}
 
 	fmt.Println()

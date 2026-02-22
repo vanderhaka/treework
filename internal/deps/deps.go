@@ -1,6 +1,8 @@
 package deps
 
 import (
+	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -48,9 +50,15 @@ func Detect(dir string) *Manager {
 
 // Install runs the package manager install command in the given directory.
 func Install(dir string, pm *Manager) error {
+	if pm == nil {
+		return fmt.Errorf("no package manager provided")
+	}
 	cmd := exec.Command(pm.Command, "install")
 	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%w: %s", err, stderr.String())
+	}
+	return nil
 }

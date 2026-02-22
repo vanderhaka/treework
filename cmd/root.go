@@ -32,9 +32,6 @@ func Execute() {
 }
 
 func runRoot(cmd *cobra.Command, args []string) {
-	fmt.Println()
-	fmt.Println(ui.Banner())
-
 	for {
 		fmt.Println()
 		action, err := ui.SelectAction()

@@ -38,11 +38,12 @@ func ScanRepos(devDir string) []string {
 		}
 
 		if d.Name() == ".git" {
-			repo := filepath.Dir(path)
-			repos = append(repos, repo)
 			if d.IsDir() {
+				repo := filepath.Dir(path)
+				repos = append(repos, repo)
 				return fs.SkipDir
 			}
+			return nil // .git file = worktree reference, skip
 		}
 
 		return nil

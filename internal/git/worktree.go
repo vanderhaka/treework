@@ -2,6 +2,7 @@ package git
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
@@ -20,27 +21,49 @@ type WorktreeInfo struct {
 func WorktreeAdd(repoDir, wtPath, branchName string, newBranch bool) error {
 	var cmd *exec.Cmd
 	if newBranch {
-		cmd = exec.Command("git", "-C", repoDir, "worktree", "add", wtPath, "-b", branchName)
+		cmd = exec.Command("git", "-C", repoDir, "worktree", "add", "-b", branchName, "--", wtPath)
 	} else {
-		cmd = exec.Command("git", "-C", repoDir, "worktree", "add", wtPath, branchName)
+		cmd = exec.Command("git", "-C", repoDir, "worktree", "add", "--", wtPath, "--", branchName)
 	}
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%w: %s", err, stderr.String())
+	}
+	return nil
 }
 
-// WorktreeRemove removes a worktree. Tries normal remove first, then force.
+// WorktreeRemove removes a worktree without forcing.
 func WorktreeRemove(repoDir, wtPath string) error {
-	err := exec.Command("git", "-C", repoDir, "worktree", "remove", wtPath).Run()
-	if err != nil {
-		err = exec.Command("git", "-C", repoDir, "worktree", "remove", "--force", wtPath).Run()
+	cmd := exec.Command("git", "-C", repoDir, "worktree", "remove", "--", wtPath)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		return nil
 	}
-	return err
+	msg := strings.TrimSpace(string(out))
+	if msg == "" {
+		return err
+	}
+	return fmt.Errorf("%s: %w", msg, err)
+}
+
+// WorktreeForceRemove force-removes a worktree.
+func WorktreeForceRemove(repoDir, wtPath string) error {
+	cmd := exec.Command("git", "-C", repoDir, "worktree", "remove", "--force", "--", wtPath)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		return nil
+	}
+	msg := strings.TrimSpace(string(out))
+	if msg == "" {
+		return err
+	}
+	return fmt.Errorf("%s: %w", msg, err)
 }
 
 // WorktreePrune prunes stale worktree references.
-func WorktreePrune(repoDir string) {
-	exec.Command("git", "-C", repoDir, "worktree", "prune").Run()
+func WorktreePrune(repoDir string) error {
+	return exec.Command("git", "-C", repoDir, "worktree", "prune").Run()
 }
 
 // WorktreeList returns all worktrees for a repo (excluding the main one).
@@ -50,19 +73,17 @@ func WorktreeList(repoDir string) []WorktreeInfo {
 		return nil
 	}
 
-	var worktrees []WorktreeInfo
+	var all []WorktreeInfo
 	var current WorktreeInfo
 	scanner := bufio.NewScanner(strings.NewReader(string(out)))
-	first := true
 
 	for scanner.Scan() {
 		line := scanner.Text()
 
 		if strings.HasPrefix(line, "worktree ") {
-			if !first && current.Path != "" {
-				worktrees = append(worktrees, current)
+			if current.Path != "" {
+				all = append(all, current)
 			}
-			first = false
 			current = WorktreeInfo{
 				Path: strings.TrimPrefix(line, "worktree "),
 			}
@@ -73,14 +94,15 @@ func WorktreeList(repoDir string) []WorktreeInfo {
 		}
 	}
 
-	// Don't forget the last entry, but skip first (main worktree)
-	if current.Path != "" && len(worktrees) > 0 {
-		worktrees = append(worktrees, current)
-	} else if current.Path != "" && !first {
-		// This was the only entry (the main worktree) — skip it
+	if current.Path != "" {
+		all = append(all, current)
 	}
 
-	return worktrees
+	if len(all) > 1 {
+		return all[1:]
+	}
+
+	return nil
 }
 
 // MainWorktreePath returns the path of the main worktree for a repo.
@@ -131,7 +153,7 @@ func FindWorktreeDirs(devDir string) []string {
 
 		if d.IsDir() && strings.Contains(d.Name(), "-worktree-") {
 			// Skip .git subdirectories
-			if !strings.Contains(path, "/.git/") {
+			if !strings.Contains(path, string(os.PathSeparator)+".git"+string(os.PathSeparator)) {
 				dirs = append(dirs, path)
 			}
 			return fs.SkipDir

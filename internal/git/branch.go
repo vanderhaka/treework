@@ -7,7 +7,7 @@ import (
 
 // BranchExists checks if a local branch exists in the given repo.
 func BranchExists(repoDir, branch string) bool {
-	err := exec.Command("git", "-C", repoDir, "show-ref", "--verify", "--quiet", "refs/heads/"+branch).Run()
+	err := exec.Command("git", "-C", repoDir, "show-ref", "--verify", "--quiet", "--", "refs/heads/"+branch).Run()
 	return err == nil
 }
 
@@ -39,16 +39,16 @@ func DefaultBranch(repoDir string) string {
 // IsBranchMerged checks if branch is merged into the default branch.
 func IsBranchMerged(repoDir, branch string) bool {
 	base := DefaultBranch(repoDir)
-	err := exec.Command("git", "-C", repoDir, "merge-base", "--is-ancestor", branch, base).Run()
+	err := exec.Command("git", "-C", repoDir, "merge-base", "--is-ancestor", "--", branch, base).Run()
 	return err == nil
 }
 
 // DeleteBranch deletes a local branch (soft delete with -d).
 func DeleteBranch(repoDir, branch string) error {
-	return exec.Command("git", "-C", repoDir, "branch", "-d", branch).Run()
+	return exec.Command("git", "-C", repoDir, "branch", "-d", "--", branch).Run()
 }
 
 // ForceDeleteBranch deletes a local branch with -D (force).
 func ForceDeleteBranch(repoDir, branch string) error {
-	return exec.Command("git", "-C", repoDir, "branch", "-D", branch).Run()
+	return exec.Command("git", "-C", repoDir, "branch", "-D", "--", branch).Run()
 }

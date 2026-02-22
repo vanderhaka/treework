@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/charmbracelet/huh/spinner"
 	"github.com/jamesvanderhaak/wt/internal/config"
@@ -72,6 +73,7 @@ func doRm(direct bool) {
 		}
 		return
 	}
+	defaultBranch := git.DefaultBranch(mainDir)
 
 	ui.Info(fmt.Sprintf("Removing: %s (branch: %s)", filepath.Base(selected), branch))
 
@@ -80,7 +82,6 @@ func doRm(direct bool) {
 		Title("Removing worktree...").
 		Action(func() {
 			removeErr = git.WorktreeRemove(mainDir, selected)
-			git.WorktreePrune(mainDir)
 		}).
 		Run()
 
@@ -99,19 +100,45 @@ func doRm(direct bool) {
 	}
 
 	if removeErr != nil {
-		ui.Error("Failed to remove worktree. Check for uncommitted changes.")
+		if strings.Contains(strings.ToLower(removeErr.Error()), "unclean working tree") {
+			forceRemove, confirmErr := ui.Confirm(fmt.Sprintf("Force-remove worktree '%s' with uncommitted changes?", filepath.Base(selected)))
+			if confirmErr != nil {
+				if isAbort(confirmErr) {
+					if direct {
+						handleAbort(confirmErr)
+					}
+					return
+				}
+				ui.Error(confirmErr.Error())
+				if direct {
+					os.Exit(1)
+				}
+				return
+			}
+			if forceRemove {
+				removeErr = git.WorktreeForceRemove(mainDir, selected)
+			}
+		}
+	}
+
+	if removeErr != nil {
+		_ = git.WorktreePrune(mainDir)
+		ui.Error("Failed to remove worktree.")
 		if direct {
 			os.Exit(1)
 		}
 		return
 	}
 
+	_ = git.WorktreePrune(mainDir)
 	ui.Success("Removed worktree")
 
-	if branch != "" && branch != "HEAD" && branch != "main" && branch != "master" {
+	if branch != "" && branch != "HEAD" && branch != defaultBranch {
 		if git.IsBranchMerged(mainDir, branch) {
 			if err := git.DeleteBranch(mainDir, branch); err == nil {
 				ui.Success(fmt.Sprintf("Deleted merged branch '%s'", branch))
+			} else {
+				ui.Warn(fmt.Sprintf("Could not delete branch '%s': %v", branch, err))
 			}
 		} else {
 			ui.Warn(fmt.Sprintf("Branch '%s' is not merged", branch))
@@ -121,6 +148,9 @@ func doRm(direct bool) {
 					if direct {
 						handleAbort(err)
 					}
+					return
+				} else {
+					ui.Warn(fmt.Sprintf("Prompt error: %v — keeping branch", err))
 					return
 				}
 			}
