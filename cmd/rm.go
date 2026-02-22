@@ -149,6 +149,9 @@ func doRm(direct bool) {
 						handleAbort(err)
 					}
 					return
+				} else {
+					ui.Warn(fmt.Sprintf("Prompt error: %v — keeping branch", err))
+					return
 				}
 			}
 			if forceDelete {

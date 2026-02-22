@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/jamesvanderhaak/wt/internal/config"
 	"github.com/jamesvanderhaak/wt/internal/editor"
@@ -83,6 +84,7 @@ func doLs(direct bool) {
 			}
 			return
 		}
+		ui.Warn(fmt.Sprintf("Prompt error: %v", err))
 		return
 	}
 
@@ -98,16 +100,9 @@ func doLs(direct bool) {
 }
 
 func extractRepoName(wtDirName string) string {
-	idx := len(wtDirName)
 	const marker = "-worktree-"
-	for i := 0; i <= len(wtDirName)-len(marker); i++ {
-		if wtDirName[i:i+len(marker)] == marker {
-			idx = i
-			break
-		}
-	}
-	if idx < len(wtDirName) {
+	if idx := strings.Index(wtDirName, marker); idx >= 0 {
 		return wtDirName[:idx]
 	}
-	return ""
+	return wtDirName
 }

@@ -1,11 +1,9 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/charmbracelet/huh/spinner"
 	"github.com/jamesvanderhaak/wt/internal/deps"
@@ -144,6 +142,8 @@ func doNew(args []string, direct bool) {
 					handleAbort(err)
 				}
 				// Skip install but continue — worktree is already created
+			} else {
+				ui.Warn(fmt.Sprintf("Prompt error: %v — skipping install", err))
 			}
 		} else if install {
 			var installErr error
@@ -151,9 +151,7 @@ func doNew(args []string, direct bool) {
 				Title(fmt.Sprintf("Installing dependencies with %s...", pm.Name)).
 				Action(func() {
 					installErr = deps.Install(resolved, pm)
-					time.Sleep(100 * time.Millisecond)
 				}).
-				Context(context.Background()).
 				Run()
 
 			if err != nil && !isAbort(err) {
