@@ -20,9 +20,9 @@ type WorktreeInfo struct {
 func WorktreeAdd(repoDir, wtPath, branchName string, newBranch bool) error {
 	var cmd *exec.Cmd
 	if newBranch {
-		cmd = exec.Command("git", "-C", repoDir, "worktree", "add", wtPath, "-b", branchName)
+		cmd = exec.Command("git", "-C", repoDir, "worktree", "add", "-b", branchName, "--", wtPath)
 	} else {
-		cmd = exec.Command("git", "-C", repoDir, "worktree", "add", wtPath, branchName)
+		cmd = exec.Command("git", "-C", repoDir, "worktree", "add", "--", wtPath, "--", branchName)
 	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -31,7 +31,7 @@ func WorktreeAdd(repoDir, wtPath, branchName string, newBranch bool) error {
 
 // WorktreeRemove removes a worktree without forcing.
 func WorktreeRemove(repoDir, wtPath string) error {
-	cmd := exec.Command("git", "-C", repoDir, "worktree", "remove", wtPath)
+	cmd := exec.Command("git", "-C", repoDir, "worktree", "remove", "--", wtPath)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		return nil
@@ -45,7 +45,7 @@ func WorktreeRemove(repoDir, wtPath string) error {
 
 // WorktreeForceRemove force-removes a worktree.
 func WorktreeForceRemove(repoDir, wtPath string) error {
-	cmd := exec.Command("git", "-C", repoDir, "worktree", "remove", "--force", wtPath)
+	cmd := exec.Command("git", "-C", repoDir, "worktree", "remove", "--force", "--", wtPath)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		return nil
