@@ -102,7 +102,7 @@ func doClear(direct bool) {
 					}
 				}
 			}
-			git.WorktreePrune(repoDir)
+			_ = git.WorktreePrune(repoDir)
 		}).
 		Run()
 
