@@ -119,6 +119,10 @@ When you remove a worktree:
 | `/` | Filter list |
 | `Ctrl+C` | Quit |
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
 MIT

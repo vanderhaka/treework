@@ -37,12 +37,9 @@ func ScanRepos(devDir string) []string {
 			return fs.SkipDir
 		}
 
-		if d.Name() == ".git" {
-			repo := filepath.Dir(path)
-			repos = append(repos, repo)
-			if d.IsDir() {
-				return fs.SkipDir
-			}
+		if d.Name() == ".git" && d.IsDir() {
+			repos = append(repos, filepath.Dir(path))
+			return fs.SkipDir
 		}
 
 		return nil
