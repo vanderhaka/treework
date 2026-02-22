@@ -69,19 +69,17 @@ func WorktreeList(repoDir string) []WorktreeInfo {
 		return nil
 	}
 
-	var worktrees []WorktreeInfo
+	var all []WorktreeInfo
 	var current WorktreeInfo
 	scanner := bufio.NewScanner(strings.NewReader(string(out)))
-	first := true
 
 	for scanner.Scan() {
 		line := scanner.Text()
 
 		if strings.HasPrefix(line, "worktree ") {
-			if !first && current.Path != "" {
-				worktrees = append(worktrees, current)
+			if current.Path != "" {
+				all = append(all, current)
 			}
-			first = false
 			current = WorktreeInfo{
 				Path: strings.TrimPrefix(line, "worktree "),
 			}
@@ -92,14 +90,15 @@ func WorktreeList(repoDir string) []WorktreeInfo {
 		}
 	}
 
-	// Don't forget the last entry, but skip first (main worktree)
-	if current.Path != "" && len(worktrees) > 0 {
-		worktrees = append(worktrees, current)
-	} else if current.Path != "" && !first {
-		// This was the only entry (the main worktree) — skip it
+	if current.Path != "" {
+		all = append(all, current)
 	}
 
-	return worktrees
+	if len(all) > 1 {
+		return all[1:]
+	}
+
+	return nil
 }
 
 // MainWorktreePath returns the path of the main worktree for a repo.
