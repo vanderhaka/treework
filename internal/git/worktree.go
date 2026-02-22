@@ -2,6 +2,7 @@ package git
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
@@ -24,9 +25,12 @@ func WorktreeAdd(repoDir, wtPath, branchName string, newBranch bool) error {
 	} else {
 		cmd = exec.Command("git", "-C", repoDir, "worktree", "add", "--", wtPath, "--", branchName)
 	}
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%w: %s", err, stderr.String())
+	}
+	return nil
 }
 
 // WorktreeRemove removes a worktree without forcing.
