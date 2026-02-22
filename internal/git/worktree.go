@@ -58,8 +58,8 @@ func WorktreeForceRemove(repoDir, wtPath string) error {
 }
 
 // WorktreePrune prunes stale worktree references.
-func WorktreePrune(repoDir string) {
-	exec.Command("git", "-C", repoDir, "worktree", "prune").Run()
+func WorktreePrune(repoDir string) error {
+	return exec.Command("git", "-C", repoDir, "worktree", "prune").Run()
 }
 
 // WorktreeList returns all worktrees for a repo (excluding the main one).
@@ -149,7 +149,7 @@ func FindWorktreeDirs(devDir string) []string {
 
 		if d.IsDir() && strings.Contains(d.Name(), "-worktree-") {
 			// Skip .git subdirectories
-			if !strings.Contains(path, "/.git/") {
+			if !strings.Contains(path, string(os.PathSeparator)+".git"+string(os.PathSeparator)) {
 				dirs = append(dirs, path)
 			}
 			return fs.SkipDir
