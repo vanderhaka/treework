@@ -73,6 +73,7 @@ func doRm(direct bool) {
 		}
 		return
 	}
+	defaultBranch := git.DefaultBranch(mainDir)
 
 	ui.Info(fmt.Sprintf("Removing: %s (branch: %s)", filepath.Base(selected), branch))
 
@@ -132,7 +133,7 @@ func doRm(direct bool) {
 	git.WorktreePrune(mainDir)
 	ui.Success("Removed worktree")
 
-	if branch != "" && branch != "HEAD" && branch != "main" && branch != "master" {
+	if branch != "" && branch != "HEAD" && branch != defaultBranch {
 		if git.IsBranchMerged(mainDir, branch) {
 			if err := git.DeleteBranch(mainDir, branch); err == nil {
 				ui.Success(fmt.Sprintf("Deleted merged branch '%s'", branch))

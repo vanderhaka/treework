@@ -54,6 +54,7 @@ func doClear(direct bool) {
 		fmt.Println()
 		return
 	}
+	defaultBranch := git.DefaultBranch(repoDir)
 
 	// 3. Display list
 	ui.Info(fmt.Sprintf("Worktrees for %s:", ui.BoldStyle.Render(repoName)))
@@ -95,7 +96,7 @@ func doClear(direct bool) {
 				}
 
 				// Auto-delete merged branches
-				if wt.Branch != "" && wt.Branch != "main" && wt.Branch != "master" {
+				if wt.Branch != "" && wt.Branch != defaultBranch {
 					if git.IsBranchMerged(repoDir, wt.Branch) {
 						git.DeleteBranch(repoDir, wt.Branch)
 					}
