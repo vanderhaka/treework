@@ -98,7 +98,7 @@ func SelectAction() (string, error) {
 		Title("What would you like to do?").
 		Options(
 			huh.NewOption("Create new worktree", "new"),
-			huh.NewOption("Open a worktree", "ls"),
+			huh.NewOption("List worktrees", "ls"),
 			huh.NewOption("Remove a worktree", "rm"),
 			huh.NewOption("Remove ALL worktrees for a repo", "clear"),
 		).
