@@ -8,40 +8,42 @@ import (
 	"github.com/vanderhaka/treework/internal/ui"
 )
 
-// SetBaseDir runs the shared path-selection flow.
+// SetBaseDir runs the shared path-selection flow with retry on invalid paths.
 // Returns the chosen directory path or an error.
 func SetBaseDir(currentPath string) (string, error) {
-	method, err := ui.SelectPathMethod()
-	if err != nil {
-		return "", err
-	}
-
-	var selected string
-	switch method {
-	case "type":
-		selected, err = ui.InputPath(currentPath)
+	for {
+		method, err := ui.SelectPathMethod()
 		if err != nil {
 			return "", err
 		}
-	case "browse":
-		startDir := currentPath
-		if info, serr := os.Stat(startDir); serr != nil || !info.IsDir() {
-			startDir, _ = os.UserHomeDir()
-		}
-		selected, err = ui.BrowseDirectory(startDir)
-		if err != nil {
-			return "", err
-		}
-	}
 
-	// Validate the path exists and is a directory
-	info, err := os.Stat(selected)
-	if err != nil || !info.IsDir() {
-		ui.Error(fmt.Sprintf("Not a valid directory: %s", selected))
-		return "", fmt.Errorf("invalid directory: %s", selected)
-	}
+		var selected string
+		switch method {
+		case "type":
+			selected, err = ui.InputPath(currentPath)
+			if err != nil {
+				return "", err
+			}
+		case "browse":
+			startDir := currentPath
+			if info, serr := os.Stat(startDir); serr != nil || !info.IsDir() {
+				startDir, _ = os.UserHomeDir()
+			}
+			selected, err = ui.BrowseDirectory(startDir)
+			if err != nil {
+				return "", err
+			}
+		}
 
-	return selected, nil
+		// Validate the path exists and is a directory
+		info, err := os.Stat(selected)
+		if err != nil || !info.IsDir() {
+			ui.Warn(fmt.Sprintf("'%s' is not a valid directory. Try again.", selected))
+			continue
+		}
+
+		return selected, nil
+	}
 }
 
 // doSettings shows the current base folder and lets the user change it.
@@ -56,7 +58,7 @@ func doSettings() {
 	} else if os.Getenv("DEV_DIR") != "" {
 		ui.Muted("(from DEV_DIR env var)")
 	} else {
-		ui.Muted("(default)")
+		ui.Muted("(not set)")
 	}
 	fmt.Println()
 

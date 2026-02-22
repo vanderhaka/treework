@@ -49,56 +49,65 @@ func doNew(args []string, direct bool) {
 		return
 	}
 
-	// 2. Get name
-	var name string
+	// 2. Get name (with retry for invalid names and existing worktrees)
+	var name, resolved string
+	repoName := filepath.Base(repoDir)
+
 	if len(args) > 0 {
-		name = args[0]
-	} else {
-		name, err = ui.InputName()
-		if err != nil {
-			if isAbort(err) {
-				if direct {
-					handleAbort(err)
-				}
-				return
-			}
-			ui.Error(err.Error())
+		name = sanitize.Name(args[0])
+		if name == "" {
+			ui.Error("Invalid name — use letters, numbers, hyphens, or underscores.")
 			if direct {
 				os.Exit(1)
 			}
 			return
 		}
-	}
-
-	name = sanitize.Name(name)
-	if name == "" {
-		ui.Error("Name became empty after sanitising.")
-		if direct {
-			os.Exit(1)
+		resolved = resolveWorktreePath(git.WorktreePath(repoDir, name))
+		if _, err := os.Stat(resolved); err == nil {
+			ui.Info(fmt.Sprintf("'%s' already exists — opening it instead.", name))
+			if err := editor.Open(resolved); err != nil {
+				ui.Warn(fmt.Sprintf("Could not open editor: %v", err))
+			}
+			return
 		}
-		return
-	}
+	} else {
+		for {
+			name, err = ui.InputName()
+			if err != nil {
+				if isAbort(err) {
+					if direct {
+						handleAbort(err)
+					}
+					return
+				}
+				ui.Error(err.Error())
+				if direct {
+					os.Exit(1)
+				}
+				return
+			}
 
-	// 3. Compute path
-	wtPath := git.WorktreePath(repoDir, name)
-	resolved := resolveWorktreePath(wtPath)
-	repoName := filepath.Base(repoDir)
+			name = sanitize.Name(name)
+			if name == "" {
+				ui.Warn("Invalid name — use letters, numbers, hyphens, or underscores. Try again.")
+				continue
+			}
 
-	// 4. If exists → open in editor
-	if _, err := os.Stat(resolved); err == nil {
-		ui.Info(fmt.Sprintf("Already exists: %s-worktree-%s", repoName, name))
-		if err := editor.Open(resolved); err != nil {
-			ui.Warn(fmt.Sprintf("Could not open editor: %v", err))
+			resolved = resolveWorktreePath(git.WorktreePath(repoDir, name))
+			if _, err := os.Stat(resolved); err == nil {
+				ui.Warn(fmt.Sprintf("'%s' already exists. Pick a different name.", name))
+				continue
+			}
+			break
 		}
-		return
 	}
 
-	// 5-6. Create worktree (with spinner)
+	// 3. Create worktree (with spinner)
 	branchExists := git.BranchExists(repoDir, name)
 	var addErr error
 
 	err = spinner.New().
-		Title(fmt.Sprintf("Creating worktree %s-worktree-%s...", repoName, name)).
+		Title(fmt.Sprintf("Creating %s/%s...", repoName, name)).
 		Action(func() {
 			addErr = git.WorktreeAdd(repoDir, resolved, name, !branchExists)
 		}).
@@ -166,8 +175,8 @@ func doNew(args []string, direct bool) {
 		ui.Warn(fmt.Sprintf("Could not open editor: %v", err))
 	}
 
-	// 10. Print success
+	// Print success
 	fmt.Println()
-	ui.Success(fmt.Sprintf("Ready: %s-worktree-%s", repoName, name))
+	ui.Success(fmt.Sprintf("Ready: %s/%s", repoName, name))
 	ui.Muted(resolved)
 }

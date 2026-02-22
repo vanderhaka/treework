@@ -30,7 +30,7 @@ func resolveRepo(forceSelect bool) (string, error) {
 
 	repos := git.ScanRepos(devDir)
 	if len(repos) == 0 {
-		return "", fmt.Errorf("no git repos found in %s", devDir)
+		return "", fmt.Errorf("no git repos found in %s — check your base folder in 'treework settings'", devDir)
 	}
 
 	selected, err := ui.SelectRepo(repos)

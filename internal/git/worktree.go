@@ -36,12 +36,18 @@ type WorktreeStatus struct {
 }
 
 // CheckWorktreeStatus inspects a worktree for unsaved work.
+// If git commands fail, assumes the worktree is dirty (fail safe).
 func CheckWorktreeStatus(wtPath string) WorktreeStatus {
 	var s WorktreeStatus
 
 	// Check for modified, staged, or untracked files
 	out, err := exec.Command("git", "-C", wtPath, "status", "--porcelain").Output()
-	if err == nil && len(strings.TrimSpace(string(out))) > 0 {
+	if err != nil {
+		// Git failed — assume dirty to prevent accidental deletion
+		s.HasUncommittedChanges = true
+		return s
+	}
+	if len(strings.TrimSpace(string(out))) > 0 {
 		s.HasUncommittedChanges = true
 	}
 
@@ -49,7 +55,10 @@ func CheckWorktreeStatus(wtPath string) WorktreeStatus {
 	branch := CurrentBranch(wtPath)
 	if branch != "" && branch != "HEAD" {
 		out, err = exec.Command("git", "-C", wtPath, "log", branch, "--not", "--remotes", "--oneline").Output()
-		if err == nil && len(strings.TrimSpace(string(out))) > 0 {
+		if err != nil {
+			// Git failed — assume dirty to prevent accidental deletion
+			s.HasUnpushedCommits = true
+		} else if len(strings.TrimSpace(string(out))) > 0 {
 			s.HasUnpushedCommits = true
 		}
 	}
