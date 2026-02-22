@@ -19,17 +19,30 @@ var clearCmd = &cobra.Command{
 
 // runClearInteractive is called from the root menu loop.
 func runClearInteractive(cmd *cobra.Command) {
-	runClear(cmd, nil)
+	doClear(false)
 }
 
 func runClear(cmd *cobra.Command, args []string) {
 	fmt.Println()
+	doClear(true)
+}
+
+func doClear(direct bool) {
 
 	// 1. Resolve repo
 	repoDir, err := resolveRepo()
 	if err != nil {
+		if isAbort(err) {
+			if direct {
+				handleAbort(err)
+			}
+			return
+		}
 		ui.Error(err.Error())
-		os.Exit(1)
+		if direct {
+			os.Exit(1)
+		}
+		return
 	}
 
 	repoName := filepath.Base(repoDir)
@@ -52,9 +65,17 @@ func runClear(cmd *cobra.Command, args []string) {
 	// 4. Confirm
 	confirmed, err := ui.Confirm(fmt.Sprintf("Remove all %d worktrees?", len(worktrees)))
 	if err != nil {
-		handleAbort(err)
+		if isAbort(err) {
+			if direct {
+				handleAbort(err)
+			}
+			return
+		}
 		ui.Error(err.Error())
-		os.Exit(1)
+		if direct {
+			os.Exit(1)
+		}
+		return
 	}
 	if !confirmed {
 		ui.Muted("Cancelled.")
@@ -85,9 +106,17 @@ func runClear(cmd *cobra.Command, args []string) {
 		Run()
 
 	if err != nil {
-		handleAbort(err)
+		if isAbort(err) {
+			if direct {
+				handleAbort(err)
+			}
+			return
+		}
 		ui.Error(err.Error())
-		os.Exit(1)
+		if direct {
+			os.Exit(1)
+		}
+		return
 	}
 	if len(errs) > 0 {
 		fmt.Println()
